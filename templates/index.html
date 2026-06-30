@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Secret Scanner — Find leaked secrets in public repos</title>
+  <meta name="description" content="Scan any public GitHub repo for accidentally committed secrets: API keys, tokens, passwords, private keys, and more.">
+  <meta property="og:title" content="GitHub Secret Scanner — Find leaked secrets in public repos">
+  <meta property="og:description" content="Scan any public GitHub repo for accidentally committed secrets: API keys, tokens, passwords, private keys.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg-card: #161b22;
+      --bg-input: #1c2333;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --orange: #d29922;
+      --red: #f85149;
+      --border: #30363d;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px;
+    }
+    header h1 { font-size: 1.4em; }
+    .subtitle { color: var(--text-muted); font-size: 0.82em; margin-top: 2px; }
+    .header-links { display: flex; gap: 8px; }
+    .header-links a {
+      padding: 6px 14px; border-radius: 6px; font-size: 0.85em; font-weight: 500;
+      border: 1px solid var(--border); transition: background 0.2s;
+    }
+    .header-links .sponsor { background: #FF5E5B; color: #fff; border-color: #FF5E5B; }
+    .header-links .sponsor:hover { background: #ff4440; text-decoration: none; }
+    .header-links .gh { background: var(--bg-card); color: var(--text); }
+    .header-links .gh:hover { background: #1c2333; text-decoration: none; }
+
+    main { max-width: 800px; margin: 0 auto; padding: 30px 20px; flex: 1; width: 100%; }
+
+    .input-group {
+      display: flex; gap: 8px; margin-bottom: 8px;
+    }
+    .input-group input {
+      flex: 1; padding: 12px 16px; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.95em; font-family: 'JetBrains Mono', monospace;
+    }
+    .input-group input:focus { outline: none; border-color: var(--accent); }
+    .input-group input::placeholder { color: var(--text-muted); font-size: 0.85em; }
+    .input-group button {
+      padding: 12px 24px; background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; font-size: 0.95em; font-weight: 600; cursor: pointer;
+      transition: background 0.2s; white-space: nowrap;
+    }
+    .input-group button:hover { background: #4090e0; }
+    .input-group button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .hint { color: var(--text-muted); font-size: 0.82em; margin-bottom: 20px; }
+    .examples { margin-top: 6px; }
+    .examples span { cursor: pointer; color: var(--accent); }
+    .examples span:hover { text-decoration: underline; }
+
+    .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+    .stat {
+      flex: 1; min-width: 120px; padding: 16px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 8px; text-align: center;
+    }
+    .stat .num { font-size: 1.6em; font-weight: 700; }
+    .stat .label { font-size: 0.8em; color: var(--text-muted); margin-top: 2px; }
+    .stat.high .num { color: var(--red); }
+    .stat.medium .num { color: var(--orange); }
+    .stat.low .num { color: var(--text-muted); }
+    .stat.total .num { color: var(--accent); }
+
+    .severity-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 0.7em; font-weight: 600; text-transform: uppercase;
+    }
+    .severity-high { background: #f8514922; color: var(--red); }
+    .severity-medium { background: #d2992222; color: var(--orange); }
+    .severity-low { background: #8b949e22; color: var(--text-muted); }
+
+    .finding {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px; margin-bottom: 8px;
+    }
+    .finding-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .finding-type { font-weight: 600; font-size: 0.9em; }
+    .finding-file {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.78em;
+      color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .finding-line { color: var(--text-muted); font-size: 0.8em; }
+    .finding-snippet {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.8em;
+      background: var(--bg-input); padding: 10px; border-radius: 4px;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin-top: 6px;
+      color: var(--text);
+    }
+
+    .empty { text-align: center; padding: 40px; color: var(--green); font-size: 1.1em; }
+    .empty-sub { color: var(--text-muted); font-size: 0.85em; margin-top: 6px; }
+
+    .error-box {
+      background: var(--bg-card); border: 1px solid var(--red); border-radius: 8px;
+      padding: 16px; color: var(--red); margin-bottom: 16px;
+    }
+
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .no-findings { text-align: center; padding: 40px; }
+    .no-findings .icon { font-size: 2em; margin-bottom: 8px; }
+    .no-findings p { color: var(--green); font-weight: 500; }
+    .no-findings .sub { color: var(--text-muted); font-size: 0.85em; margin-top: 4px; }
+
+    footer {
+      text-align: center; padding: 20px; border-top: 1px solid var(--border);
+      color: var(--text-muted); font-size: 0.85em;
+    }
+
+    @media (max-width: 640px) {
+      header { flex-direction: column; text-align: center; }
+      .input-group { flex-direction: column; }
+      .stats { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🔍 GitHub Secret Scanner</h1>
+      <p class="subtitle">Check any public repo for accidentally committed secrets</p>
+    </div>
+    <div class="header-links">
+      <a href="https://ko-fi.com/gnaixnaij" target="_blank" class="sponsor">☕ Sponsor</a>
+      <a href="https://github.com/gnaixnaij/github-secret-scanner" target="_blank" class="gh">GitHub</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="input-group">
+      <input type="text" id="repo-url" placeholder="https://github.com/owner/repo" spellcheck="false"
+        onkeydown="if(event.key==='Enter') scan()">
+      <button id="scan-btn" onclick="scan()">🔍 Scan</button>
+    </div>
+    <div class="hint">
+      Scans public repos for AWS keys, GitHub tokens, Slack tokens, private keys, passwords, connection strings, and more.
+      <div class="examples">Try: <span onclick="setUrl('https://github.com/gnaixnaij/cyber-cheatsheet')">gnaixnaij/cyber-cheatsheet</span></div>
+    </div>
+
+    <div id="results"></div>
+  </main>
+
+  <footer>
+    <p><a href="https://github.com/gnaixnaij/github-secret-scanner">GitHub</a> · <a href="https://ko-fi.com/gnaixnaij">Sponsor</a> · by <a href="https://github.com/gnaixnaij">gnaixnaij</a></p>
+  </footer>
+
+  <script>
+    function setUrl(url) {
+      document.getElementById("repo-url").value = url;
+    }
+
+    const SEVERITY_MAP = {
+      "Private Key": "high", "AWS Access Key": "high", "AWS Secret Key": "high",
+      "Slack Token": "medium", "GitHub PAT": "medium", "GitHub OAuth": "medium",
+      "Google API Key": "medium", "Stripe Live Key": "medium",
+    };
+
+    function getSeverity(type) {
+      return SEVERITY_MAP[type] || "low";
+    }
+
+    async function scan() {
+      const url = document.getElementById("repo-url").value.trim();
+      if (!url) return;
+
+      const btn = document.getElementById("scan-btn");
+      btn.disabled = true;
+      btn.textContent = "⏳ Scanning...";
+      document.getElementById("results").innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Scanning repo... this may take a moment</p></div>';
+
+      try {
+        const r = await fetch("/api/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url })
+        });
+        const data = await r.json();
+        renderResults(data);
+      } catch (err) {
+        document.getElementById("results").innerHTML = `<div class="error-box">Request failed: ${err.message}</div>`;
+      }
+
+      btn.disabled = false;
+      btn.textContent = "🔍 Scan";
+    }
+
+    function renderResults(data) {
+      const container = document.getElementById("results");
+
+      if (data.error) {
+        container.innerHTML = `<div class="error-box">⚠️ ${escapeHtml(data.error)}</div>`;
+        return;
+      }
+
+      let html = '<div class="stats">';
+      html += `<div class="stat total"><div class="num">${data.total_findings}</div><div class="label">Secrets found</div></div>`;
+      html += `<div class="stat high"><div class="num">${data.severity.high}</div><div class="label">High risk</div></div>`;
+      html += `<div class="stat medium"><div class="num">${data.severity.medium}</div><div class="label">Medium risk</div></div>`;
+      html += `<div class="stat low"><div class="num">${data.severity.low}</div><div class="label">Low risk</div></div>`;
+      html += `<div class="stat total" style="border-color:transparent"><div class="num">${data.scanned_files}</div><div class="label">Files scanned</div></div>`;
+      html += '</div>';
+
+      if (data.findings && data.findings.length > 0) {
+        html += `<p style="color:var(--text-muted);font-size:0.85em;margin-bottom:12px">Found in <strong>${data.repo}</strong> (${data.branch} branch)</p>`;
+        data.findings.forEach(f => {
+          const sev = getSeverity(f.type);
+          html += `<div class="finding">
+            <div class="finding-header">
+              <span class="severity-badge severity-${sev}">${sev}</span>
+              <span class="finding-type">${escapeHtml(f.type)}</span>
+              <span class="finding-file">${escapeHtml(f.file)}</span>
+              <span class="finding-line">:${f.line}</span>
+            </div>
+            <div class="finding-snippet">${escapeHtml(f.snippet)}</div>
+          </div>`;
+        });
+      } else {
+        html += '<div class="no-findings"><div class="icon">✅</div><p>No secrets found!</p>';
+        html += `<div class="sub">Scanned ${data.scanned_files} files in ${data.repo}</div></div>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+      const d = document.createElement("div");
+      d.textContent = text;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>
