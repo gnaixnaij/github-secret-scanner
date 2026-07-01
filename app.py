@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 SECRET_PATTERNS = [
     ("AWS Access Key", r"AKIA[0-9A-Z]{16}"),
-    ("AWS Secret Key", r"(?i)aws(.{0,20})?(?-i)['\"][0-9a-zA-Z\/+]{40}['\"]"),
+    ("AWS Secret Key", r"(?i)aws(.{0,20})?['\"][0-9a-zA-Z\/+]{40}['\"]"),
     ("GitHub PAT", r"ghp_[0-9a-zA-Z]{36}"),
     ("GitHub OAuth", r"gho_[0-9a-zA-Z]{36}"),
     ("GitHub App Token", r"ghs_[0-9a-zA-Z]{36}"),
