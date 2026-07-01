@@ -176,11 +176,14 @@ def scan():
     repo_url = data.get("url", "").strip()
 
     if not repo_url:
-        return jsonify({"error": "No URL provided"}), 400
+        return jsonify({"error": "No URL provided. Paste a GitHub repo URL like: https://github.com/owner/repo"}), 400
+
+    if "github.com" not in repo_url:
+        return jsonify({"error": "This doesn't look like a GitHub URL. Make sure it starts with: https://github.com/owner/repo"}), 400
 
     owner, repo, branch = parse_github_url(repo_url)
     if not owner or not repo:
-        return jsonify({"error": "Invalid GitHub URL. Use format: https://github.com/owner/repo"}), 400
+        return jsonify({"error": "Could not find the repo in that URL. Use format: https://github.com/owner/repo (e.g. https://github.com/gnaixnaij/cyber-cheatsheet)"}), 400
 
     try:
         if not branch:
@@ -221,7 +224,9 @@ def scan():
         })
 
     except requests.exceptions.Timeout:
-        return jsonify({"error": "Request timed out. Large repos may not work."}), 504
+        return jsonify({"error": "Request timed out. Large repos may not work. Try a smaller repo."}), 504
+    except re.error:
+        return jsonify({"error": "Internal scanning error. Please report this on GitHub."}), 500
     except Exception as e:
         return jsonify({"error": str(e)[:200]}), 500
 
