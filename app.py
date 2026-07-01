@@ -64,6 +64,11 @@ EXCLUDE_PATTERNS = [
     r"package-lock\.json$",
     r"yarn\.lock$",
     r"\.min\.(js|css)$",
+    r"app\.py$",
+    r"templates/",
+    r"__tests__/",
+    r"test_",
+    r"_test\.",
 ]
 
 TEXT_EXTENSIONS = {
